@@ -262,6 +262,49 @@ static int waveman_callback(uint8_t bb[BITBUF_ROWS][BITBUF_COLS]) {
     return 0;
 }
 
+static int RSL366T_callback(uint8_t bb[BITBUF_ROWS][BITBUF_COLS]) {
+    /* Two bits map to 2 states, 0 1 -> 0 and 1 1 -> 1 */
+    /* bit is on bostion 1 3 5 or 7 */
+    int i;
+    uint8_t nb[3] = {0};
+    uint8_t decodedb[2]={0};
+
+    if (((bb[0][0]&0x55)==0x55) && ((bb[0][1]&0x55)==0x55) && ((bb[0][2]&0x55)==0x55) && ((bb[0][3]&0xFF)==0x00) && ((bb[0][0]&0x99)!=0x00) && ((bb[0][1]&0x99)!=0x00) ) {
+    
+	for (i=0 ; i<2 ; i++) {
+	    if ((bb[0][i]&0xD7)==0xD5) decodedb[i]=1;
+	    if ((bb[0][i]&0x75)==0x75) decodedb[i]=2;
+	    if ((bb[0][i]&0x5D)==0x5D) decodedb[i]=3;
+	    if ((bb[0][i]&0x57)==0x57) decodedb[i]=4;
+	}
+
+        fprintf(stderr, "Remote button event:\n");
+        fprintf(stderr, "model   = Hand Transmitter RSL366T\n");
+        fprintf(stderr, "channel = %d\n", decodedb[0]);
+        fprintf(stderr, "button  = %d\n", decodedb[1]);
+        fprintf(stderr, "state   = %s\n", ((bb[0][2]&0x57)==0x55) ? "on" : "off");
+        
+	/*fprintf(stderr, "%02x %02x %02x\n",nb[0],nb[1],nb[2]); */
+	/*fprintf(stderr, "%02x %02x %02x %02x\n",bb[0][0],bb[0][1],bb[0][2],bb[0][3]);
+        fprintf(stderr, "decoded %02x %02x \n",decodedb[0],decodedb[1]);
+	*/
+
+        if (debug_output)
+            debug_callback(bb);
+
+        return 1;
+    }
+    return 0;
+}
+
+
+
+
+
+
+
+
+
 
 uint16_t AD_POP(uint8_t bb[BITBUF_COLS], uint8_t bits, uint8_t bit) {
     uint16_t val = 0;
@@ -483,6 +526,15 @@ r_device waveman = {
 };
 
 
+r_device RSL366T = {
+    /*.id             = */ 9,
+    /*.name           = */ "Hand Transmitter RSL366T",
+    /*.modulation     = */ OOK_PWM_P,
+    /*.short_limit    = */ 1000/4,
+    /* .long_limit     = */ 8000/4,
+    /* .reset_limit    = */ 30000/4,
+    /* .json_callback  = */ &RSL366T_callback,
+};
 struct protocol_state {
     int (*callback)(uint8_t bits_buffer[BITBUF_ROWS][BITBUF_COLS]);
 
@@ -1345,6 +1397,8 @@ int main(int argc, char **argv)
     register_protocol(demod, &elv_em1000);
     register_protocol(demod, &elv_ws2000);
     register_protocol(demod, &waveman);
+    register_protocol(demod, &RSL366T);
+
 
     if (argc <= optind-1) {
         usage();
